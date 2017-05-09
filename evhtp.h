@@ -270,6 +270,7 @@ typedef void * (* evhtp_ssl_scache_init)(evhtp_t *);
 #define EVHTP_RES_BWEXEED       509
 #endif
 
+#if 0
 struct evhtp_defaults_s {
     evhtp_callback_cb    cb;
     evhtp_pre_accept_cb  pre_accept;
@@ -278,6 +279,7 @@ struct evhtp_defaults_s {
     void               * pre_accept_cbarg;
     void               * post_accept_cbarg;
 };
+#endif
 
 struct evhtp_alias_s {
     char * alias;
@@ -285,6 +287,7 @@ struct evhtp_alias_s {
     TAILQ_ENTRY(evhtp_alias_s) next;
 };
 
+#if 0
 /**
  * @ingroup evhtp_core
  * @brief main structure containing all configuration information
@@ -334,6 +337,7 @@ struct evhtp_s {
     TAILQ_HEAD(, evhtp_s) vhosts;
     TAILQ_ENTRY(evhtp_s) next_vhost;
 };
+#endif
 
 /**
  * @brief structure containing a single callback and configuration
@@ -369,23 +373,6 @@ struct evhtp_callback_s {
 
 TAILQ_HEAD(evhtp_callbacks_s, evhtp_callback_s);
 
-/**
- * @brief a generic key/value structure
- */
-struct evhtp_kv_s {
-    char * key;
-    char * val;
-
-    size_t klen;
-    size_t vlen;
-
-    char k_heaped; /**< set to 1 if the key can be free()'d */
-    char v_heaped; /**< set to 1 if the val can be free()'d */
-
-    TAILQ_ENTRY(evhtp_kv_s) next;
-};
-
-TAILQ_HEAD(evhtp_kvs_s, evhtp_kv_s);
 
 
 
@@ -431,105 +418,9 @@ struct evhtp_path_s {
 };
 
 
-/**
- * @brief a structure containing all information for a http request.
- */
-struct evhtp_request_s {
-    evhtp_t            * htp;           /**< the parent evhtp_t structure */
-    evhtp_connection_t * conn;          /**< the associated connection */
-    evhtp_hooks_t      * hooks;         /**< request specific hooks */
-    evhtp_uri_t        * uri;           /**< request URI information */
-    evbuf_t            * buffer_in;     /**< buffer containing data from client */
-    evbuf_t            * buffer_out;    /**< buffer containing data to client */
-    evhtp_headers_t    * headers_in;    /**< headers from client */
-    evhtp_headers_t    * headers_out;   /**< headers to client */
-    evhtp_proto          proto;         /**< HTTP protocol used */
-    htp_method           method;        /**< HTTP method used */
-    evhtp_res            status;        /**< The HTTP response code or other error conditions */
-    uint8_t              keepalive : 1, /**< set to 1 if the connection is keep-alive */
-                         finished  : 1, /**< set to 1 if the request is fully processed */
-                         chunked   : 1, /**< set to 1 if the request is chunked */
-                         error     : 1, /**< set if any sort of error has occurred. */
-                         pad       : 4; /**< to be used in evhtp2 for new stuff */
-
-    evhtp_callback_cb cb;               /**< the function to call when fully processed */
-    void            * cbarg;            /**< argument which is passed to the cb function */
-
-    TAILQ_ENTRY(evhtp_request_s) next;
-};
 
 #define evhtp_request_content_len(r) htparser_get_content_length(r->conn->parser)
 
-struct evhtp_connection_s {
-    evhtp_t  * htp;
-    evbase_t * evbase;
-    evbev_t  * bev;
-#ifndef EVHTP_DISABLE_EVTHR
-    evthr_t * thread;
-#endif
-#ifndef EVHTP_DISABLE_SSL
-    evhtp_ssl_t * ssl;
-#endif
-    evhtp_hooks_t   * hooks;
-    htparser        * parser;
-    event_t         * resume_ev;
-    struct sockaddr * saddr;
-    struct timeval    recv_timeo;          /**< conn read timeouts (overrides global) */
-    struct timeval    send_timeo;          /**< conn write timeouts (overrides global) */
-    evutil_socket_t   sock;
-    evhtp_request_t * request;             /**< the request currently being processed */
-    uint64_t          max_body_size;
-    uint64_t          body_bytes_read;
-    uint64_t          num_requests;
-    evhtp_type        type;                /**< server or client */
-    uint8_t           error           : 1,
-                      owner           : 1, /**< set to 1 if this structure owns the bufferevent */
-                      vhost_via_sni   : 1, /**< set to 1 if the vhost was found via SSL SNI */
-                      paused          : 1, /**< this connection has been marked as paused */
-                      connected       : 1, /**< client specific - set after successful connection */
-                      waiting         : 1, /**< used to make sure resuming  happens AFTER sending a reply */
-                      free_connection : 1,
-                      keepalive       : 1; /**< set to 1 after the first request has been processed and the connection is kept open */
-    struct evbuffer * scratch_buf;         /**< always zero'd out after used */
-
-#ifdef EVHTP_FUTURE_USE
-    TAILQ_HEAD(, evhtp_request_s) pending; /**< client pending data */
-#endif
-};
-
-struct evhtp_hooks_s {
-    evhtp_hook_headers_start_cb   on_headers_start;
-    evhtp_hook_header_cb          on_header;
-    evhtp_hook_headers_cb         on_headers;
-    evhtp_hook_path_cb            on_path;
-    evhtp_hook_read_cb            on_read;
-    evhtp_hook_request_fini_cb    on_request_fini;
-    evhtp_hook_connection_fini_cb on_connection_fini;
-    evhtp_hook_conn_err_cb        on_connection_error;
-    evhtp_hook_err_cb             on_error;
-    evhtp_hook_chunk_new_cb       on_new_chunk;
-    evhtp_hook_chunk_fini_cb      on_chunk_fini;
-    evhtp_hook_chunks_fini_cb     on_chunks_fini;
-    evhtp_hook_hostname_cb        on_hostname;
-    evhtp_hook_write_cb           on_write;
-    evhtp_hook_event_cb           on_event;
-
-    void * on_headers_start_arg;
-    void * on_header_arg;
-    void * on_headers_arg;
-    void * on_path_arg;
-    void * on_read_arg;
-    void * on_request_fini_arg;
-    void * on_connection_fini_arg;
-    void * on_connection_error_arg;
-    void * on_error_arg;
-    void * on_new_chunk_arg;
-    void * on_chunk_fini_arg;
-    void * on_chunks_fini_arg;
-    void * on_hostname_arg;
-    void * on_write_arg;
-    void * on_event_arg;
-};
 
 #ifndef EVHTP_DISABLE_SSL
 struct evhtp_ssl_cfg_s {
@@ -1178,6 +1069,7 @@ EVHTP_EXPORT evhtp_header_t * evhtp_header_new(const char * key, const char * va
  *
  * @return an evhtp_header_t pointer or NULL on error
  */
+    evbuf_t            * buffer_out; 
 EVHTP_EXPORT evhtp_header_t * evhtp_header_key_add(evhtp_headers_t * headers,
     const char * key, char kalloc);
 
@@ -1212,20 +1104,6 @@ EVHTP_EXPORT void evhtp_headers_add_header(evhtp_headers_t * headers, evhtp_head
  * @return the value of the header key if found, NULL if not found.
  */
 EVHTP_EXPORT const char * evhtp_header_find(evhtp_headers_t * headers, const char * key);
-
-#define evhtp_header_find         evhtp_kv_find
-#define evhtp_headers_find_header evhtp_kvs_find_kv
-#define evhtp_headers_for_each    evhtp_kvs_for_each
-#define evhtp_header_new          evhtp_kv_new
-#define evhtp_header_free         evhtp_kv_free
-#define evhtp_headers_new         evhtp_kvs_new
-#define evhtp_headers_free        evhtp_kvs_free
-#define evhtp_header_rm_and_free  evhtp_kv_rm_and_free
-#define evhtp_headers_add_header  evhtp_kvs_add_kv
-#define evhtp_headers_add_headers evhtp_kvs_add_kvs
-#define evhtp_query_new           evhtp_kvs_new
-#define evhtp_query_free          evhtp_kvs_free
-
 
 /**
  * @brief returns the htp_method enum version of the request method.
